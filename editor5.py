@@ -133,6 +133,36 @@ class SourceLine(urwid.Widget):
         return key
 
 
+class CursorLocation:
+    def __init__(self, widgets):
+        self.widgets = widgets
+        self.cursor_col = 0
+
+    def move_left(self):
+        widget, line = self.widgets.get_focus()
+        self.cursor_col = widget.cursor_col-1
+
+    def move_right(self):
+        widget, line = self.widgets.get_focus()
+        self.cursor_col = widget.cursor_col+1
+
+    def move_up(self):
+        widget, line = self.widgets.get_focus()
+        if len(self.widgets[line-1].text) < self.cursor_col:
+            self.widgets[line-1].cursor_col = len(self.widgets[line-1].text)
+        else:
+            self.widgets[line-1].cursor_col = self.cursor_col
+
+    def move_down(self):
+        widget, line = self.widgets.get_focus()
+        if len(self.widgets) <= line+1:
+            return
+        elif len(self.widgets[line+1].text) < self.cursor_col: # if next line is shorter then the cursor col we go to end of text
+            self.widgets[line+1].cursor_col = len(self.widgets[line+1].text)
+        else:
+            self.widgets[line+1].cursor_col = self.cursor_col
+
+
 class TextArea(urwid.Widget):
     """ TextArea has many SourceLines and manages their relationship. """
     _selectable = True
@@ -142,46 +172,33 @@ class TextArea(urwid.Widget):
         self.list = urwid.SimpleFocusListWalker([])
         logger.info(self.list)
         self.listbox = urwid.ListBox(self.list)
-        self.cursor_col = 0
+        self.cursor_location = CursorLocation(self.list)
 
     def __getattr__(self, name):
         return getattr(self.listbox, name)
 
     def keypress(self, size, key):
-        logger.info('TextArea keypress')
-
         if key == 'backspace':
             widget, line = self.list.get_focus()
             if widget.cursor_col == 0 and widget.text == '': # do not propgate this keypress
                 self.list.remove(widget)
-                self.list.set_focus(line)
+                self.list.set_focus(line-1)
                 return key
             elif widget.cursor_col == 0 and widget.text != '':
-                l = len(self.list[line-1].text)
-                logger.info(l)
                 self.list[line-1].text += widget.text
                 self.list.set_focus(line-1)
                 self.list.remove(widget)
         elif key == 'enter':
             self.change_line()
         elif key == 'left':
-            widget, line = self.list.get_focus()
-            self.cursor_col = widget.cursor_col-1
+            self.cursor_location.move_left()
         elif key == 'right':
-            widget, line = self.list.get_focus()
-            self.cursor_col = widget.cursor_col+1
+            self.cursor_location.move_right()
         elif key == 'down':
-            widget, line = self.list.get_focus()
-            if len(self.list[line+1].text) < self.cursor_col: # if next line is shorter then the cursor col we go to end of text
-                self.list[line+1].cursor_col = len(self.list[line+1].text)
-            else:
-                self.list[line+1].cursor_col = self.cursor_col
+            self.cursor_location.move_down()
         elif key == 'up':
-            widget, line = self.list.get_focus()
-            if len(self.list[line-1].text) < self.cursor_col:
-                self.list[line-1].cursor_col = len(self.list[line-1].text)
-            else:
-                self.list[line-1].cursor_col = self.cursor_col
+            self.cursor_location.move_up()
+        logger.info(self.cursor_location.cursor_col)
         self.listbox.keypress(size, key)
         return key
 
@@ -280,8 +297,6 @@ class Editor:
         self.textarea = TextArea()
         self.textarea.open_file('../projects/colors.py')
         listbox = self.textarea.get_listbox()
-        #ed = urwid.Filler(textarea)
-        #self.footer = urwid.Text(('footer', u" Hello World "))
         plugins = Plugin(self.textarea)
         self.footer = CommandPrompt(self.textarea, plugins)
         self.top = urwid.Frame(self.textarea, footer=self.footer, focus_part='body')
@@ -294,7 +309,6 @@ class Editor:
 
     def input_filter(self, key, raw):
         if key == ['meta c']:
-            logger.info('WOOP')
             self.top.focus_position = 'footer'
         if key == ['f5']:
             logger.info('save')
