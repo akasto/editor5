@@ -174,6 +174,7 @@ class TextArea(urwid.Widget):
         logger.info(self.list)
         self.listbox = urwid.ListBox(self.list)
         self.cursor_location = CursorLocation(self.list)
+        self.file_path = None
 
     def __getattr__(self, name):
         return getattr(self.listbox, name)
@@ -184,11 +185,13 @@ class TextArea(urwid.Widget):
         logger.info(size)
         if key == 'backspace':
             widget, line = self.list.get_focus()
+            logger.info(widget.text)
             if widget.cursor_col == 0 and widget.text == '': # do not propgate this keypress
                 self.list.remove(widget)
                 self.list.set_focus(line-1)
                 return key
-            elif widget.cursor_col == 0 and widget.text != '':
+            elif widget.cursor_col == 0 and widget.text != '' and line != 0:
+                logger.info(line)
                 self.list[line-1].text += widget.text
                 self.list.set_focus(line-1)
                 self.list.remove(widget)
@@ -221,16 +224,17 @@ class TextArea(urwid.Widget):
         widget.cursor_col = 0
 
     def open_file(self, path):
+        self.file_path = path
         logger.info('open file')
         del self.list[:]
-        f = open(path)
+        f = open(self.file_path)
         for num, line in enumerate(f):
             # rstrip to get rid of ? mark for each \n
             edit = SourceLine(line.rstrip())
             self.list.append(edit)
 
     def save_file(self):
-        with open('workfile', 'w') as f:
+        with open(self.file_path, 'w') as f:
             for line in self.list:
                 f.write(line.text+'\n')
 
@@ -315,9 +319,9 @@ class SaveFile(Command):
 
 
 class Editor:
-    def __init__(self):
+    def __init__(self, file_path=''):
         self.textarea = TextArea()
-        self.textarea.open_file('../projects/colors.py')
+        self.textarea.open_file(file_path)
         listbox = self.textarea.get_listbox()
         plugins = Plugin(self.textarea)
         self.footer = CommandPrompt(self.textarea, plugins)
@@ -335,8 +339,11 @@ class Editor:
         logger.info('Editor key event')
         logger.info(key)
         logger.info(raw)
+        if key == []:
+            return key
         if key == ['meta c']:
             self.top.focus_position = 'footer'
+            return key
         if key == ['f5']:
             logger.info('save')
         if key == ['f1']:
