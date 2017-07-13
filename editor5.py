@@ -116,6 +116,7 @@ class SourceLine(urwid.Widget):
         return urwid.TextCanvas([self.text.encode('utf-8')], attr=[color_attribute], cursor=cursor, maxcol=maxcol)
 
     def keypress(self, size, key):
+        logger.info('SourceLine key event')
         (maxcol, ) = size
         if len(key) == 1:
             self.text = self.text[:self.cursor_col]+key+self.text[self.cursor_col:]
@@ -178,6 +179,9 @@ class TextArea(urwid.Widget):
         return getattr(self.listbox, name)
 
     def keypress(self, size, key):
+        logger.info('TextArea key event')
+        logger.info(key)
+        logger.info(size)
         if key == 'backspace':
             widget, line = self.list.get_focus()
             if widget.cursor_col == 0 and widget.text == '': # do not propgate this keypress
@@ -247,12 +251,16 @@ class CommandPrompt(urwid.Widget):
         return getattr(self.edit, name)
 
     def keypress(self, size, key):
-        logger.info('keypress')
+        logger.info('CommandPrompt key event')
         if key == 'enter':
             # check for matching command
             cmd = self.plugins.get_plugin(self.edit.edit_text)
             if cmd:
                 logger.info('match')
+        else:
+            for p in self.plugins:
+                if p.key == key:
+                    logger.info(p)
         self.edit.keypress(size, key)
         return key
 
@@ -275,8 +283,20 @@ class Plugin:
             if cls_obj.command.startswith(command.split()[0]):
                 return cls_obj(command, self.textarea)
 
+    def __iter__(self):
+        self.current = 0
+        return self
+
+    def __next__(self):
+        if self.current >= len(registry):
+            raise StopIteration
+        else:
+            self.current += 1
+            return registry[self.current-1][1]
+
 class Command(object, metaclass=RegistryMeta):
     command = 'none'
+    key = None
 
 class OpenFile(Command):
     command = 'open'
@@ -287,6 +307,8 @@ class OpenFile(Command):
 
 class SaveFile(Command):
     command = 'save'
+    key = 'ctrl s'
+
     def __init__(self, command, textarea):
         logger.info('save file')
         textarea.save_file()
@@ -305,15 +327,22 @@ class Editor:
         self.loop = urwid.MainLoop(
             self.top, palette, input_filter=self.input_filter,
         )
+        # unmaps special char from their system signals ( ctrl-s )
+        self.loop.screen.tty_signal_keys(None, 'undefined', 'undefined', 'undefined')
         self.loop.run()
 
     def input_filter(self, key, raw):
+        logger.info('Editor key event')
+        logger.info(key)
+        logger.info(raw)
         if key == ['meta c']:
             self.top.focus_position = 'footer'
         if key == ['f5']:
             logger.info('save')
         if key == ['f1']:
             self.open('editor.py')
+        if key[0].startswith('ctrl') or key[0].startswith('meta'):
+            self.footer.keypress(raw, key[0])
         return key
 
 
