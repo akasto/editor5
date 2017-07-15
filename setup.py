@@ -1,11 +1,14 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
-setup(name='editor5',
-      version='0.1',
-      description='An Editor!',
-      url='http://github.com/akasto/editor5',
-      author='akasto',
-      author_email='akasto@gmail.com',
-      license='',
-      packages=['editor5'],
-      zip_safe=False)
+setup(
+    name='editor5',
+    version='0.1',
+    py_modules=find_packages(),
+    install_requires=[
+        'Click',
+    ],
+    entry_points='''
+        [console_scripts]
+        e5=editor5.e5:cli
+    ''',
+)
