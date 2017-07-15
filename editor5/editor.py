@@ -339,6 +339,7 @@ class Editor:
         logger.info('Editor key event')
         logger.info(key)
         logger.info(raw)
+        logger.info(isinstance(key[0], str))
         if key == []:
             return key
         if key == ['meta c']:
@@ -348,8 +349,9 @@ class Editor:
             logger.info('save')
         if key == ['f1']:
             self.open('editor.py')
-        if key[0].startswith('ctrl') or key[0].startswith('meta'):
-            self.footer.keypress(raw, key[0])
+        if isinstance(key[0], str):
+            if key[0].startswith('ctrl') or key[0].startswith('meta'):
+                self.footer.keypress(raw, key[0])
         return key
 
 

@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='editor5',
     version='0.1',
-    py_modules=find_packages(),
+    py_modules='editor5',
     install_requires=[
         'Click',
     ],

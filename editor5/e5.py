@@ -1,5 +1,5 @@
 import click
-from .editor import Editor
+from editor5.editor import Editor
 
 @click.command()
 @click.argument('filepath')
